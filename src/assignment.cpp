@@ -128,7 +128,6 @@ pair<double, Intersection> Superquadric::ClosestIntersection(const Ray &ray) {
     sign_b = (b >= 0) ? 1 : -1;
 
     if (b*b - 4*a*c < 0) {
-        // TODO
         pair<double, Intersection> closest = make_pair(INFINITY, Intersection());
         return closest;
     }
@@ -143,13 +142,11 @@ pair<double, Intersection> Superquadric::ClosestIntersection(const Ray &ray) {
 
     // TODO: maybe check this later
     if (initial_t < 0) {
-        // TODO
         pair<double, Intersection> closest = make_pair(INFINITY, Intersection());
         return closest;
     }
     
-
-    initial_t = (t_1 < t_2 && t_1 > 0)? t_1: t_2;
+    // initial_t = (t_1 < t_2 && t_1 > 0)? t_1: t_2;
     t = initial_t;
 
     double n = exp1;
@@ -165,15 +162,19 @@ pair<double, Intersection> Superquadric::ClosestIntersection(const Ray &ray) {
 
     while (abs(S_func_t(ax,ay,az,bx,by,bz,t,e,n)) >= 1.0/12.0) {
         double deriv = S_deriv_func(ax,ay,az,bx,by,bz,t,e,n);
+        double value = S_func_t(ax,ay,az,bx,by,bz,t,e,n);
         if (deriv > 0) {
             break;
         }
         if (abs(deriv) < 1E-6) {
-            // if ()
+            // "if the value of the function is no where close to 0"
+            if (abs(value) > 1E-6) {
+                pair<double, Intersection> closest = make_pair(INFINITY, Intersection());
+                return closest;
+            }
             break;
         }
-        t = t - S_func_t(ax,ay,az,bx,by,bz,t,e,n)/deriv;
-
+        t = t - value/deriv;
     }
 
     /**
@@ -182,7 +183,25 @@ pair<double, Intersection> Superquadric::ClosestIntersection(const Ray &ray) {
      *       Make sure to apply any transformations to the superquadric before
      *       performing Newton's method.
      */
-    pair<double, Intersection> closest = make_pair(t, Intersection());
+
+    // Now do calculations for the intersection part
+    Vector3d intersection_point;
+    intersection_point << ray.direction[0] * t + ray.origin[0], ray.direction[1] * t + ray.origin[1], ray.direction[2] * t + ray.origin[2];
+
+    Vector3d normal, transformed_intersection;
+    Vector4d temp;
+    temp << intersection_point[0], intersection_point[1], intersection_point[2], 1;
+    temp = O.inverse() * temp;
+    transformed_intersection << temp[0], temp[1], temp[2];
+
+    normal = GetNormal(transformed_intersection);
+    normal = O.inverse().transpose().block<3, 3>(0, 0) * normal;
+
+    Ray new_ray;
+    new_ray.direction = normal;
+    new_ray.origin = transformed_intersection;
+
+    pair<double, Intersection> closest = make_pair(t, Intersection(new_ray, this));
     return closest;
 }
 
