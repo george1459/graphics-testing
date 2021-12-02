@@ -46,9 +46,24 @@ bool Superquadric::IOTest(const Vector3d &point) {
 }
 
 bool Assembly::IOTest(const Vector3d &point) {
+    Matrix4d O = Matrix4d::Identity();
+    for (auto &i: transforms) {
+        O = i.get()->GetMatrix() * O;
+    }
+    Vector4d new_point;
+    new_point << (point)[0], (point)[1], (point)[2], 1.0;
+    new_point = O.inverse() * new_point;
+
+    double x = new_point[0];
+    double y = new_point[1];
+    double z = new_point[2];
+
+    Vector3d new_point_input;
+    new_point_input << x, y, z;
+
     bool res = false;
     for (auto &i: children) {
-        res = res || i.get()->IOTest(point);
+        res = res || i.get()->IOTest(new_point_input);
     }
     /**
      * PART 1
@@ -73,9 +88,15 @@ double t, double e, double n) {
     double x_comp = ax * t + bx;
     double y_comp = ay * t + by;
     double z_comp = az * t + bz;
-    double res = 2*az*bz*pow(pow(z_comp,2.0),-1.0+1.0/n) + 2*az*az*t*pow(pow(z_comp,2.0),-1.0+1.0/n)
-    + (ax*pow(x_comp,-1.0+1.0/e)+ay*pow(y_comp,-1.0+1.0/e))*pow(pow(x_comp,1.0/e)+pow(y_comp,1.0/e),-1.0+e/n);
-    return res/n;
+    // double res = 2*az*bz*pow(pow(z_comp,2.0),-1.0+1.0/n) + 2*az*az*t*pow(pow(z_comp,2.0),-1.0+1.0/n)
+    // + (ax*pow(x_comp,-1.0+1.0/e)+ay*pow(y_comp,-1.0+1.0/e))*pow(pow(x_comp,1.0/e)+pow(y_comp,1.0/e),-1.0+e/n);
+    // return res/n;
+    double common = pow(pow(x_comp*x_comp, 1.0/e) + pow(y_comp*y_comp, 1.0/e), e/n - 1.0);
+    Vector3d later;
+    later << 2.0 * x_comp * pow(x_comp*x_comp, 1.0/e - 1.0) * common, 2.0 * y_comp * pow(y_comp*y_comp, 1.0/e - 1) * common, 2.0 * z_comp * pow(z_comp*z_comp, 1.0/n - 1.0);
+    Vector3d a_vec;
+    a_vec << ax, ay, az;
+    return a_vec.dot(later)/n;
 }
 
 /**
@@ -106,13 +127,28 @@ pair<double, Intersection> Superquadric::ClosestIntersection(const Ray &ray) {
     int sign_b;
     sign_b = (b >= 0) ? 1 : -1;
 
+    if (b*b - 4*a*c < 0) {
+        // TODO
+        pair<double, Intersection> closest = make_pair(INFINITY, Intersection());
+        return closest;
+    }
+
     // get t_1 and t_2
     double t_1, t_2, t;
     t_1 = (-b - sign_b * sqrt(b*b - 4*a*c))/(2*a);
     t_2 = (2*c)/(-b - sign_b * sqrt(b*b - 4*a*c));
 
     // using the smaller value if it is positive
-    double initial_t;
+    double initial_t = min(t_1, t_2);
+
+    // TODO: maybe check this later
+    if (initial_t < 0) {
+        // TODO
+        pair<double, Intersection> closest = make_pair(INFINITY, Intersection());
+        return closest;
+    }
+    
+
     initial_t = (t_1 < t_2 && t_1 > 0)? t_1: t_2;
     t = initial_t;
 
@@ -128,7 +164,16 @@ pair<double, Intersection> Superquadric::ClosestIntersection(const Ray &ray) {
     bz = b_vec[2];
 
     while (abs(S_func_t(ax,ay,az,bx,by,bz,t,e,n)) >= 1.0/12.0) {
-        t = t - S_func_t(ax,ay,az,bx,by,bz,t,e,n)/S_deriv_func(ax,ay,az,bx,by,bz,t,e,n);
+        double deriv = S_deriv_func(ax,ay,az,bx,by,bz,t,e,n);
+        if (deriv > 0) {
+            break;
+        }
+        if (abs(deriv) < 1E-6) {
+            // if ()
+            break;
+        }
+        t = t - S_func_t(ax,ay,az,bx,by,bz,t,e,n)/deriv;
+
     }
 
     /**
