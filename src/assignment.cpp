@@ -109,15 +109,18 @@ pair<double, Intersection> Superquadric::ClosestIntersection(const Ray &ray) {
     for (auto &i: transforms) {
         O = i.get()->GetMatrix() * O;
     }
-    Vector4d new_point;
+    Ray new_ray_ = ray.Transformed(O.inverse());
+    // Vector4d new_point;
     Vector3d a_vec, b_vec;
-    new_point << (ray.origin)[0], (ray.origin)[1], (ray.origin)[2], 1.0;
-    new_point = O.inverse() * new_point;
-    b_vec << new_point[0], new_point[1], new_point[2];
+    // new_point << (ray.origin)[0], (ray.origin)[1], (ray.origin)[2], 1.0;
+    // new_point = O.inverse() * new_point;
+    // b_vec << new_point[0], new_point[1], new_point[2];
 
-    new_point << (ray.direction)[0], (ray.direction)[1], (ray.direction)[2], 1.0;
-    new_point = O.inverse() * new_point;
-    a_vec << new_point[0], new_point[1], new_point[2];
+    // new_point << (ray.direction)[0], (ray.direction)[1], (ray.direction)[2], 1.0;
+    // new_point = O.inverse() * new_point;
+    // a_vec << new_point[0], new_point[1], new_point[2];
+    a_vec = new_ray_.direction;
+    b_vec = new_ray_.origin;
 
     // Derive the a, b, c parameters as in lecture notes
     double a, b, c;
@@ -126,6 +129,8 @@ pair<double, Intersection> Superquadric::ClosestIntersection(const Ray &ray) {
     c = b_vec.dot(b_vec) - 3;
     int sign_b;
     sign_b = (b >= 0) ? 1 : -1;
+
+    cout << b*b - 4*a*c << endl;
 
     if (b*b - 4*a*c < 0) {
         pair<double, Intersection> closest = make_pair(INFINITY, Intersection());
